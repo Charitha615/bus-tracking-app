@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'ProfileScreen.dart';
+import 'HelpScreen.dart';
+import 'NotificationsScreen.dart';
 
 class DriverScreen extends StatefulWidget {
   final String userId; // Pass the user ID from the LoginScreen
@@ -22,6 +26,7 @@ class _DriverScreenState extends State<DriverScreen> {
   Duration _trackingDurationToday = Duration.zero; // Total tracking time today
   DateTime? _trackingStartTime; // Time when tracking started today
   Timer? _timer; // Timer to update the UI every second
+  Map<String, dynamic>? _userData; // Store user data
 
   @override
   void initState() {
@@ -38,13 +43,13 @@ class _DriverScreenState extends State<DriverScreen> {
   }
 
   Future<void> _fetchUserData() async {
-    // Fetch total distance and tracking duration from Firebase
+    // Fetch user data from Firebase
     DataSnapshot snapshot = await _databaseRef.child('users').child(widget.userId).get();
     if (snapshot.exists) {
-      Map<dynamic, dynamic> userData = snapshot.value as Map<dynamic, dynamic>;
       setState(() {
-        _totalDistance = userData['totalDistance'] ?? 0.0;
-        _trackingDurationToday = Duration(seconds: userData['trackingDurationToday'] ?? 0);
+        _userData = snapshot.value as Map<String, dynamic>;
+        _totalDistance = _userData?['totalDistance'] ?? 0.0;
+        _trackingDurationToday = Duration(seconds: _userData?['trackingDurationToday'] ?? 0);
       });
     }
   }
@@ -133,6 +138,11 @@ class _DriverScreenState extends State<DriverScreen> {
     });
   }
 
+  void _logout() async {
+    await FirebaseAuth.instance.signOut();
+    Navigator.pushReplacementNamed(context, '/login');
+  }
+
   @override
   void dispose() {
     _positionStream.cancel();
@@ -147,6 +157,17 @@ class _DriverScreenState extends State<DriverScreen> {
         title: Text("Driver Dashboard"),
         backgroundColor: Colors.blueAccent,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.notifications),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => NotificationsScreen(userId: widget.userId)),
+              );
+            },
+          ),
+        ],
       ),
       drawer: Drawer(
         child: ListView(
@@ -168,22 +189,26 @@ class _DriverScreenState extends State<DriverScreen> {
               leading: Icon(Icons.person),
               title: Text('Profile'),
               onTap: () {
-                // Navigate to profile screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => ProfileScreen(userId: widget.userId, userData: _userData)),
+                );
               },
             ),
             ListTile(
               leading: Icon(Icons.help),
               title: Text('Help'),
               onTap: () {
-                // Navigate to help screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => HelpScreen(userId: widget.userId)),
+                );
               },
             ),
             ListTile(
               leading: Icon(Icons.logout),
               title: Text('Logout'),
-              onTap: () {
-                // Handle logout
-              },
+              onTap: _logout,
             ),
           ],
         ),
@@ -193,88 +218,100 @@ class _DriverScreenState extends State<DriverScreen> {
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              AnimatedContainer(
-                duration: Duration(milliseconds: 500),
-                curve: Curves.easeInOut,
-                padding: EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 10,
-                      offset: Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      "Current Location",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 10),
-                    Text(
-                      _currentLocation != null
-                          ? "Lat: ${_currentLocation!.latitude}, Lng: ${_currentLocation!.longitude}"
-                          : "Location not available",
-                      style: TextStyle(fontSize: 16),
-                    ),
-                  ],
-                ),
-              ),
+              _buildLocationCard(),
               SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  ElevatedButton(
-                    onPressed: _isSharingLocation ? null : _startSharingLocation,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blueAccent,
-                      padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                    ),
-                    child: Text("Start Location"),
-                  ),
-                  ElevatedButton(
-                    onPressed: _isSharingLocation ? _stopSharingLocation : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.redAccent,
-                      padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                    ),
-                    child: Text("End Location"),
-                  ),
-                ],
-              ),
+              _buildActionButtons(),
               SizedBox(height: 20),
-              GridView.count(
-                shrinkWrap: true,
-                crossAxisCount: 2,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                children: [
-                  _buildDashboardCard(
-                    "Total Distance",
-                    "${(_totalDistance / 1000).toStringAsFixed(2)} KM",
-                    Icons.directions_walk,
-                  ),
-                  _buildDashboardCard(
-                    "Tracking Today",
-                    _isSharingLocation ? "ON" : "OFF",
-                    Icons.timer,
-                    subtitle: _trackingStartTime != null
-                        ? "Time: ${_getFormattedTime(DateTime.now())}\nDuration: ${_getFormattedDuration(_trackingDurationToday + DateTime.now().difference(_trackingStartTime!))}"
-                        : "Time: ${_getFormattedTime(DateTime.now())}\nDuration: ${_getFormattedDuration(_trackingDurationToday)}",
-                  ),
-                ],
-              ),
+              _buildDashboardCards(),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildLocationCard() {
+    return AnimatedContainer(
+      duration: Duration(milliseconds: 500),
+      curve: Curves.easeInOut,
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 10,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Text(
+            "Current Location",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          SizedBox(height: 10),
+          Text(
+            _currentLocation != null
+                ? "Lat: ${_currentLocation!.latitude}, Lng: ${_currentLocation!.longitude}"
+                : "Location not available",
+            style: TextStyle(fontSize: 16),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        ElevatedButton(
+          onPressed: _isSharingLocation ? null : _startSharingLocation,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blueAccent,
+            padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+          ),
+          child: Text("Start Location"),
+        ),
+        ElevatedButton(
+          onPressed: _isSharingLocation ? _stopSharingLocation : null,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.redAccent,
+            padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+          ),
+          child: Text("End Location"),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDashboardCards() {
+    return GridView.count(
+      shrinkWrap: true,
+      crossAxisCount: 2,
+      crossAxisSpacing: 16,
+      mainAxisSpacing: 16,
+      children: [
+        _buildDashboardCard(
+          "Total Distance",
+          "${(_totalDistance / 1000).toStringAsFixed(2)} KM",
+          Icons.directions_walk,
+        ),
+        _buildDashboardCard(
+          "Tracking Today",
+          _isSharingLocation ? "ON" : "OFF",
+          Icons.timer,
+          subtitle: _trackingStartTime != null
+              ? "Time: ${_getFormattedTime(DateTime.now())}\nDuration: ${_getFormattedDuration(_trackingDurationToday + DateTime.now().difference(_trackingStartTime!))}"
+              : "Time: ${_getFormattedTime(DateTime.now())}\nDuration: ${_getFormattedDuration(_trackingDurationToday)}",
+        ),
+      ],
     );
   }
 
@@ -339,3 +376,5 @@ class _DriverScreenState extends State<DriverScreen> {
     return "${duration.inHours}h ${duration.inMinutes.remainder(60)}m ${duration.inSeconds.remainder(60)}s";
   }
 }
+
+// Add ProfileScreen, HelpScreen, and NotificationsScreen classes here
