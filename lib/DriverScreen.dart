@@ -318,7 +318,7 @@ class _DriverScreenState extends State<DriverScreen> {
   Widget _buildDashboardCards() {
     return GridView.count(
       shrinkWrap: true,
-      crossAxisCount: 2,
+      crossAxisCount: 1, // Set to 1 for a single column
       crossAxisSpacing: 16,
       mainAxisSpacing: 16,
       childAspectRatio: 1.2, // Adjust aspect ratio to fit content
