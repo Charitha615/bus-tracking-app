@@ -13,10 +13,14 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _busRegController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref();
   String _selectedRole = 'user'; // Default role
   bool _rememberMe = false;
+  bool _isRegistering = false;
 
   @override
   void initState() {
@@ -51,34 +55,65 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
       try {
+        print("Attempting to sign in with email: ${_emailController.text}");
         UserCredential userCredential =
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
+            await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: _emailController.text,
           password: _passwordController.text,
         );
+
+        if (userCredential.user == null) {
+          print("User is null");
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("User is null")),
+          );
+          return;
+        }
+
+        print("User signed in: ${userCredential.user!.uid}");
 
         // Save remember me state
         await _saveRememberMe();
 
         // Retrieve user role from Firebase Database
-        DataSnapshot snapshot =
-        await _databaseRef.child('users').child(userCredential.user!.uid).get();
+        DataSnapshot snapshot = await _databaseRef
+            .child('users')
+            .child(userCredential.user!.uid)
+            .get();
 
         if (snapshot.exists) {
-          Map<dynamic, dynamic> userDetails = snapshot.value as Map<dynamic, dynamic>;
-          String role = userDetails['role'] ?? 'user'; // Default to 'user' if role is missing
+          Map<dynamic, dynamic> userDetails =
+              snapshot.value as Map<dynamic, dynamic>;
+          String role = userDetails['role'] ??
+              'user'; // Default to 'user' if role is missing
+
+          print("User role: $role");
 
           // Navigate based on role
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (context) => role == "admin" ? AdminScreen() : DriverScreen(userId: userCredential.user!.uid),
+              builder: (context) => role == "admin"
+                  ? AdminScreen()
+                  : DriverScreen(userId: userCredential.user!.uid),
             ),
+          );
+        } else {
+          print("User details not found in database");
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("User details not found in database")),
           );
         }
       } on FirebaseAuthException catch (e) {
+        print("FirebaseAuthException: ${e.message}");
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.message ?? "Login failed")),
+        );
+      } catch (e, stackTrace) {
+        print("Unexpected error: $e");
+        print("Stack trace: $stackTrace"); // Correctly access the stack trace
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Unexpected error occurred: $e")),
         );
       }
     }
@@ -88,7 +123,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (_formKey.currentState!.validate()) {
       try {
         UserCredential userCredential =
-        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+            await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: _emailController.text,
           password: _passwordController.text,
         );
@@ -98,6 +133,9 @@ class _LoginScreenState extends State<LoginScreen> {
           'email': userCredential.user!.email,
           'uid': userCredential.user!.uid,
           'role': _selectedRole, // Store user role
+          'name': _nameController.text,
+          'phone': _phoneController.text,
+          'busReg': _selectedRole == 'user' ? _busRegController.text : null,
           'createdAt': DateTime.now().toIso8601String(),
         });
 
@@ -105,8 +143,9 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) =>
-            _selectedRole == "admin" ? AdminScreen() : DriverScreen(userId: userCredential.user!.uid),
+            builder: (context) => _selectedRole == "admin"
+                ? AdminScreen()
+                : DriverScreen(userId: userCredential.user!.uid),
           ),
         );
       } on FirebaseAuthException catch (e) {
@@ -145,7 +184,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          "Welcome Back",
+                          _isRegistering ? "Create Account" : "Welcome Back",
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
@@ -153,6 +192,60 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         SizedBox(height: 20),
+                        if (_isRegistering) ...[
+                          TextFormField(
+                            controller: _nameController,
+                            decoration: InputDecoration(
+                              labelText: "User Name",
+                              prefixIcon: Icon(Icons.person),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter your name';
+                              }
+                              return null;
+                            },
+                          ),
+                          SizedBox(height: 16),
+                          TextFormField(
+                            controller: _phoneController,
+                            decoration: InputDecoration(
+                              labelText: "Contact Number",
+                              prefixIcon: Icon(Icons.phone),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter your contact number';
+                              }
+                              return null;
+                            },
+                          ),
+                          SizedBox(height: 16),
+                          if (_selectedRole == 'user')
+                            TextFormField(
+                              controller: _busRegController,
+                              decoration: InputDecoration(
+                                labelText: "Bus Registration Number",
+                                prefixIcon: Icon(Icons.directions_bus),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Please enter your bus registration number';
+                                }
+                                return null;
+                              },
+                            ),
+                          SizedBox(height: 16),
+                        ],
                         TextFormField(
                           controller: _emailController,
                           decoration: InputDecoration(
@@ -205,8 +298,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         DropdownButtonFormField<String>(
                           value: _selectedRole,
                           items: [
-                            DropdownMenuItem(value: 'user', child: Text('User')),
-                            DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                            DropdownMenuItem(
+                                value: 'user', child: Text('User')),
+                            DropdownMenuItem(
+                                value: 'admin', child: Text('Admin')),
                           ],
                           onChanged: (value) {
                             setState(() {
@@ -222,24 +317,31 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         SizedBox(height: 20),
                         ElevatedButton(
-                          onPressed: _login,
+                          onPressed: _isRegistering ? _createAccount : _login,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.deepPurple,
-                            padding: EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 40, vertical: 12),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
                           child: Text(
-                            "Login",
+                            _isRegistering ? "Register" : "Login",
                             style: TextStyle(fontSize: 16),
                           ),
                         ),
                         SizedBox(height: 10),
                         TextButton(
-                          onPressed: _createAccount,
+                          onPressed: () {
+                            setState(() {
+                              _isRegistering = !_isRegistering;
+                            });
+                          },
                           child: Text(
-                            "Create Account",
+                            _isRegistering
+                                ? "Already have an account? Login"
+                                : "Create Account",
                             style: TextStyle(color: Colors.deepPurple),
                           ),
                         ),

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:bus_tracking/LoginScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -43,14 +44,20 @@ class _DriverScreenState extends State<DriverScreen> {
   }
 
   Future<void> _fetchUserData() async {
-    // Fetch user data from Firebase
-    DataSnapshot snapshot = await _databaseRef.child('users').child(widget.userId).get();
+    print("Fetching user data...");
+    DataSnapshot snapshot =
+        await _databaseRef.child('users').child(widget.userId).get();
+
     if (snapshot.exists) {
+      print("User data found: ${snapshot.value}");
       setState(() {
-        _userData = snapshot.value as Map<String, dynamic>;
+        _userData = Map<String, dynamic>.from(snapshot.value as Map);
         _totalDistance = _userData?['totalDistance'] ?? 0.0;
-        _trackingDurationToday = Duration(seconds: _userData?['trackingDurationToday'] ?? 0);
+        _trackingDurationToday =
+            Duration(seconds: _userData?['trackingDurationToday'] ?? 0);
       });
+    } else {
+      print("No user data found for userId: ${widget.userId}");
     }
   }
 
@@ -111,7 +118,8 @@ class _DriverScreenState extends State<DriverScreen> {
   void _stopSharingLocation() {
     setState(() {
       _isSharingLocation = false;
-      _trackingDurationToday += DateTime.now().difference(_trackingStartTime!); // Update tracking duration
+      _trackingDurationToday += DateTime.now()
+          .difference(_trackingStartTime!); // Update tracking duration
       _trackingStartTime = null; // Reset start time
     });
 
@@ -140,7 +148,10 @@ class _DriverScreenState extends State<DriverScreen> {
 
   void _logout() async {
     await FirebaseAuth.instance.signOut();
-    Navigator.pushReplacementNamed(context, '/login');
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => LoginScreen()),
+    );
   }
 
   @override
@@ -163,7 +174,9 @@ class _DriverScreenState extends State<DriverScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => NotificationsScreen(userId: widget.userId)),
+                MaterialPageRoute(
+                    builder: (context) =>
+                        NotificationsScreen(userId: widget.userId)),
               );
             },
           ),
@@ -189,10 +202,20 @@ class _DriverScreenState extends State<DriverScreen> {
               leading: Icon(Icons.person),
               title: Text('Profile'),
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => ProfileScreen(userId: widget.userId, userData: _userData)),
-                );
+                if (_userData != null) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ProfileScreen(
+                          userId: widget.userId, userData: _userData),
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text("Please wait, loading profile data...")),
+                  );
+                }
               },
             ),
             ListTile(
@@ -201,7 +224,8 @@ class _DriverScreenState extends State<DriverScreen> {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => HelpScreen(userId: widget.userId)),
+                  MaterialPageRoute(
+                      builder: (context) => HelpScreen(userId: widget.userId)),
                 );
               },
             ),
@@ -297,6 +321,7 @@ class _DriverScreenState extends State<DriverScreen> {
       crossAxisCount: 2,
       crossAxisSpacing: 16,
       mainAxisSpacing: 16,
+      childAspectRatio: 1.2, // Adjust aspect ratio to fit content
       children: [
         _buildDashboardCard(
           "Total Distance",
@@ -315,7 +340,8 @@ class _DriverScreenState extends State<DriverScreen> {
     );
   }
 
-  Widget _buildDashboardCard(String title, String value, IconData icon, {String? subtitle}) {
+  Widget _buildDashboardCard(String title, String value, IconData icon,
+      {String? subtitle}) {
     return AnimatedContainer(
       duration: Duration(milliseconds: 500),
       curve: Curves.easeInOut,
@@ -376,5 +402,3 @@ class _DriverScreenState extends State<DriverScreen> {
     return "${duration.inHours}h ${duration.inMinutes.remainder(60)}m ${duration.inSeconds.remainder(60)}s";
   }
 }
-
-// Add ProfileScreen, HelpScreen, and NotificationsScreen classes here

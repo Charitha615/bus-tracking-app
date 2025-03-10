@@ -41,53 +41,49 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyDzLm3Wv_WuWy_tjZiCmhibWk7IwW5igtM',
-    appId: '1:963611045611:web:3a15e62546590bc17018ae',
-    messagingSenderId: '963611045611',
-    projectId: 'bustrackingapp-95ecc',
-    authDomain: 'bustrackingapp-95ecc.firebaseapp.com',
-    databaseURL: 'https://bustrackingapp-95ecc-default-rtdb.firebaseio.com',
-    storageBucket: 'bustrackingapp-95ecc.firebasestorage.app',
-    measurementId: 'G-ZQMTNS1CXP',
+    apiKey: 'AIzaSyBkjdkq0w-kYaRzRCW5LdizPTN8Srj3MnA',
+    appId: '1:842655527724:web:d4bcf045439b6f8d08b289',
+    messagingSenderId: '842655527724',
+    projectId: 'bustrackingapp-12967',
+    authDomain: 'bustrackingapp-12967.firebaseapp.com',
+    storageBucket: 'bustrackingapp-12967.firebasestorage.app',
+    measurementId: 'G-CZJCZ0F1B6',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDugLOVuT5g-hm68tGGiy9B1i2CWOF9OFo',
-    appId: '1:963611045611:android:3dcf5e3efc95174b7018ae',
-    messagingSenderId: '963611045611',
-    projectId: 'bustrackingapp-95ecc',
-    databaseURL: 'https://bustrackingapp-95ecc-default-rtdb.firebaseio.com',
-    storageBucket: 'bustrackingapp-95ecc.firebasestorage.app',
+    apiKey: 'AIzaSyA3csv8ICqeydiCFl1QCUzn2fy_rBhIrBk',
+    appId: '1:842655527724:android:da13f6618f8cbe9208b289',
+    messagingSenderId: '842655527724',
+    projectId: 'bustrackingapp-12967',
+    storageBucket: 'bustrackingapp-12967.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCn7jeIrMaoqazTMCtcGlRvCS-8Lk7xMFM',
-    appId: '1:963611045611:ios:6f17651640fcffe27018ae',
-    messagingSenderId: '963611045611',
-    projectId: 'bustrackingapp-95ecc',
-    databaseURL: 'https://bustrackingapp-95ecc-default-rtdb.firebaseio.com',
-    storageBucket: 'bustrackingapp-95ecc.firebasestorage.app',
+    apiKey: 'AIzaSyDJAAI4WNEb-ljCN0xvfdZoa-RE9dtwPfc',
+    appId: '1:842655527724:ios:985423b2c238806308b289',
+    messagingSenderId: '842655527724',
+    projectId: 'bustrackingapp-12967',
+    storageBucket: 'bustrackingapp-12967.firebasestorage.app',
     iosBundleId: 'com.example.busTracking',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyCn7jeIrMaoqazTMCtcGlRvCS-8Lk7xMFM',
-    appId: '1:963611045611:ios:6f17651640fcffe27018ae',
-    messagingSenderId: '963611045611',
-    projectId: 'bustrackingapp-95ecc',
-    databaseURL: 'https://bustrackingapp-95ecc-default-rtdb.firebaseio.com',
-    storageBucket: 'bustrackingapp-95ecc.firebasestorage.app',
+    apiKey: 'AIzaSyDJAAI4WNEb-ljCN0xvfdZoa-RE9dtwPfc',
+    appId: '1:842655527724:ios:985423b2c238806308b289',
+    messagingSenderId: '842655527724',
+    projectId: 'bustrackingapp-12967',
+    storageBucket: 'bustrackingapp-12967.firebasestorage.app',
     iosBundleId: 'com.example.busTracking',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyDzLm3Wv_WuWy_tjZiCmhibWk7IwW5igtM',
-    appId: '1:963611045611:web:4773d2eb96722fce7018ae',
-    messagingSenderId: '963611045611',
-    projectId: 'bustrackingapp-95ecc',
-    authDomain: 'bustrackingapp-95ecc.firebaseapp.com',
-    databaseURL: 'https://bustrackingapp-95ecc-default-rtdb.firebaseio.com',
-    storageBucket: 'bustrackingapp-95ecc.firebasestorage.app',
-    measurementId: 'G-VCF4B405VC',
+    apiKey: 'AIzaSyBkjdkq0w-kYaRzRCW5LdizPTN8Srj3MnA',
+    appId: '1:842655527724:web:c72b8b80651950ee08b289',
+    messagingSenderId: '842655527724',
+    projectId: 'bustrackingapp-12967',
+    authDomain: 'bustrackingapp-12967.firebaseapp.com',
+    storageBucket: 'bustrackingapp-12967.firebasestorage.app',
+    measurementId: 'G-SMEFPNY1MD',
   );
+
 }
