@@ -328,7 +328,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           child: Text(
                             _isRegistering ? "Register" : "Login",
-                            style: TextStyle(fontSize: 16),
+                            style: TextStyle(fontSize: 16, color: Colors.white),
                           ),
                         ),
                         SizedBox(height: 10),
