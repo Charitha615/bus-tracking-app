@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:bus_tracking/LoginScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -7,10 +8,11 @@ import 'package:latlong2/latlong.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'ProfileScreen.dart';
 import 'HelpScreen.dart';
+import 'BookingDetailsScreen.dart';
 import 'NotificationsScreen.dart';
 
 class DriverScreen extends StatefulWidget {
-  final String userId; // Pass the user ID from the LoginScreen
+  final String userId;
 
   DriverScreen({required this.userId});
 
@@ -23,41 +25,34 @@ class _DriverScreenState extends State<DriverScreen> {
   bool _isSharingLocation = false;
   LatLng? _currentLocation;
   late StreamSubscription<Position> _positionStream;
-  double _totalDistance = 0.0; // Total distance traveled in meters
-  Duration _trackingDurationToday = Duration.zero; // Total tracking time today
-  DateTime? _trackingStartTime; // Time when tracking started today
-  Timer? _timer; // Timer to update the UI every second
-  Map<String, dynamic>? _userData; // Store user data
+  double _totalDistance = 0.0;
+  Duration _trackingDurationToday = Duration.zero;
+  DateTime? _trackingStartTime;
+  Timer? _timer;
+  Map<String, dynamic>? _userData;
 
   @override
   void initState() {
     super.initState();
     _checkLocationPermission();
     _startTimer();
-    _fetchUserData(); // Fetch user data from Firebase
+    _fetchUserData();
   }
 
   void _startTimer() {
     _timer = Timer.periodic(Duration(seconds: 1), (timer) {
-      setState(() {}); // Update the UI every second
+      setState(() {});
     });
   }
 
   Future<void> _fetchUserData() async {
-    print("Fetching user data...");
-    DataSnapshot snapshot =
-        await _databaseRef.child('users').child(widget.userId).get();
-
+    DataSnapshot snapshot = await _databaseRef.child('users').child(widget.userId).get();
     if (snapshot.exists) {
-      print("User data found: ${snapshot.value}");
       setState(() {
         _userData = Map<String, dynamic>.from(snapshot.value as Map);
         _totalDistance = _userData?['totalDistance'] ?? 0.0;
-        _trackingDurationToday =
-            Duration(seconds: _userData?['trackingDurationToday'] ?? 0);
+        _trackingDurationToday = Duration(seconds: _userData?['trackingDurationToday'] ?? 0);
       });
-    } else {
-      print("No user data found for userId: ${widget.userId}");
     }
   }
 
@@ -92,19 +87,18 @@ class _DriverScreenState extends State<DriverScreen> {
   void _startSharingLocation() {
     setState(() {
       _isSharingLocation = true;
-      _trackingStartTime = DateTime.now(); // Record the start time
+      _trackingStartTime = DateTime.now();
     });
 
     _positionStream = Geolocator.getPositionStream().listen((position) {
       if (_currentLocation != null) {
-        // Calculate distance between previous and current location
         double distance = Geolocator.distanceBetween(
           _currentLocation!.latitude,
           _currentLocation!.longitude,
           position.latitude,
           position.longitude,
         );
-        _totalDistance += distance; // Update total distance
+        _totalDistance += distance;
       }
 
       setState(() {
@@ -118,15 +112,12 @@ class _DriverScreenState extends State<DriverScreen> {
   void _stopSharingLocation() {
     setState(() {
       _isSharingLocation = false;
-      _trackingDurationToday += DateTime.now()
-          .difference(_trackingStartTime!); // Update tracking duration
-      _trackingStartTime = null; // Reset start time
+      _trackingDurationToday += DateTime.now().difference(_trackingStartTime!);
+      _trackingStartTime = null;
     });
 
     _positionStream.cancel();
     _databaseRef.child('locations').child('driver_location').remove();
-
-    // Save total distance and tracking duration to Firebase
     _updateUserDataInDatabase();
   }
 
@@ -154,6 +145,150 @@ class _DriverScreenState extends State<DriverScreen> {
     );
   }
 
+  void _showBookingDialog() {
+    TextEditingController fromController = TextEditingController();
+    TextEditingController toController = TextEditingController();
+    DateTime selectedDate = DateTime.now();
+    TimeOfDay selectedTime = TimeOfDay.now();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Create Booking"),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: fromController,
+                  decoration: InputDecoration(labelText: "From"),
+                ),
+                TextField(
+                  controller: toController,
+                  decoration: InputDecoration(labelText: "To"),
+                ),
+                ListTile(
+                  title: Text("Date: ${selectedDate.toLocal().toString().split(' ')[0]}"),
+                  trailing: Icon(Icons.calendar_today),
+                  onTap: () async {
+                    final DateTime? picked = await showDatePicker(
+                      context: context,
+                      initialDate: selectedDate,
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime(2101),
+                    );
+                    if (picked != null && picked != selectedDate) {
+                      setState(() {
+                        selectedDate = picked;
+                      });
+                    }
+                  },
+                ),
+                ListTile(
+                  title: Text("Time: ${selectedTime.format(context)}"),
+                  trailing: Icon(Icons.access_time),
+                  onTap: () async {
+                    final TimeOfDay? picked = await showTimePicker(
+                      context: context,
+                      initialTime: selectedTime,
+                    );
+                    if (picked != null && picked != selectedTime) {
+                      setState(() {
+                        selectedTime = picked;
+                      });
+                    }
+                  },
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      selectedDate = DateTime.now();
+                      selectedTime = TimeOfDay.now();
+                    });
+                  },
+                  child: Text("NOW"),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () {
+                if (fromController.text.isNotEmpty && toController.text.isNotEmpty) {
+                  double price = _calculateRandomPrice();
+                  _createBooking(fromController.text, toController.text, selectedDate, selectedTime, price);
+                  Navigator.pop(context);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Please fill all fields")),
+                  );
+                }
+              },
+              child: Text("Create Booking"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  double _calculateRandomPrice() {
+    return (100 + (Random().nextDouble() * 100)).roundToDouble();
+  }
+
+  void _createBooking(String from, String to, DateTime date, TimeOfDay time, double price) {
+    String bookingId = _databaseRef.child('bookings').push().key!;
+    _databaseRef.child('bookings').child(bookingId).set({
+      'from': from,
+      'to': to,
+      'date': date.toIso8601String(),
+      'time': "${time.hour}:${time.minute}",
+      'price': price,
+      'userId': widget.userId,
+    }).then((_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Booking created successfully!")),
+      );
+      _showBookingDetailsPopup(from, to, date, time, price);
+    });
+  }
+
+  void _showBookingDetailsPopup(String from, String to, DateTime date, TimeOfDay time, double price) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Booking Details"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text("From: $from"),
+              Text("To: $to"),
+              Text("Date: ${date.toLocal().toString().split(' ')[0]}"),
+              Text("Time: ${time.format(context)}"),
+              Text("Price: \$${price.toStringAsFixed(2)}"),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: Text("OK"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     _positionStream.cancel();
@@ -175,8 +310,7 @@ class _DriverScreenState extends State<DriverScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) =>
-                        NotificationsScreen(userId: widget.userId)),
+                    builder: (context) => NotificationsScreen(userId: widget.userId)),
               );
             },
           ),
@@ -230,6 +364,18 @@ class _DriverScreenState extends State<DriverScreen> {
               },
             ),
             ListTile(
+              leading: Icon(Icons.book),
+              title: Text('Booking Details'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => BookingDetailsScreen(userId: widget.userId),
+                  ),
+                );
+              },
+            ),
+            ListTile(
               leading: Icon(Icons.logout),
               title: Text('Logout'),
               onTap: _logout,
@@ -247,6 +393,10 @@ class _DriverScreenState extends State<DriverScreen> {
               _buildActionButtons(),
               SizedBox(height: 20),
               _buildDashboardCards(),
+              ElevatedButton(
+                onPressed: _showBookingDialog,
+                child: Text("Create Booking"),
+              ),
             ],
           ),
         ),
@@ -318,10 +468,10 @@ class _DriverScreenState extends State<DriverScreen> {
   Widget _buildDashboardCards() {
     return GridView.count(
       shrinkWrap: true,
-      crossAxisCount: 1, // Set to 1 for a single column
+      crossAxisCount: 1,
       crossAxisSpacing: 16,
       mainAxisSpacing: 16,
-      childAspectRatio: 1.2, // Adjust aspect ratio to fit content
+      childAspectRatio: 1.2,
       children: [
         _buildDashboardCard(
           "Total Distance",
@@ -402,3 +552,4 @@ class _DriverScreenState extends State<DriverScreen> {
     return "${duration.inHours}h ${duration.inMinutes.remainder(60)}m ${duration.inSeconds.remainder(60)}s";
   }
 }
+
